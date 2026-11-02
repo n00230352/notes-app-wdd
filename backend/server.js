@@ -1,7 +1,13 @@
 import "dotenv/config";
 import express from "express";
 
-import { upload, getFileUrl, usingS3, uploadsDir } from "./uploads.js";
+import {
+  upload,
+  getFileUrl,
+  deleteFile,
+  usingS3,
+  uploadsDir,
+} from "./uploads.js";
 
 const port = process.env.PORT || 8080;
 

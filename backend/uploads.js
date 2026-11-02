@@ -5,13 +5,18 @@
 //
 
 import { mkdirSync } from "node:fs";
+import { unlink } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 
 import multer from "multer";
 import multerS3 from "multer-s3";
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  GetObjectCommand,
+  DeleteObjectCommand,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -28,6 +33,21 @@ const URL_LIFETIME = 300;
 //
 function chooseFilename(req, file, cb) {
   cb(null, randomUUID() + path.extname(file.originalname));
+}
+
+function toLocalUploadPath(filename) {
+  const basename = path.basename(filename);
+
+  if (
+    basename !== filename ||
+    basename === "" ||
+    basename === "." ||
+    basename === ".."
+  ) {
+    throw new Error("Invalid attachment filename");
+  }
+
+  return path.join(uploadsDir, basename);
 }
 
 let s3;
@@ -76,5 +96,16 @@ export async function getFileUrl(filename) {
     s3,
     new GetObjectCommand({ Bucket: process.env.S3_BUCKET, Key: filename }),
     { expiresIn: URL_LIFETIME },
+  );
+}
+
+export async function deleteFile(filename) {
+  if (!usingS3) {
+    await unlink(toLocalUploadPath(filename));
+    return;
+  }
+
+  await s3.send(
+    new DeleteObjectCommand({ Bucket: process.env.S3_BUCKET, Key: filename }),
   );
 }
